@@ -13,38 +13,35 @@ export async function GET(
     }
 
     try {
+        console.log('Proxying video request for fileId:', fileId);
         const downloadUrl = await getFileDownloadUrl(fileId);
+        console.log('Fetched download URL successfully.');
 
-        // 使用 axios 流式获取 Telegram 服务器上的文件内容
+        // Vercel Serverless Function 有限制 (Payload size & Timeout)
+        // 对于 1.6GB 这么大的视频，直接流式转发可能会被 Vercel 断开连接
+        // 既然我们主要用于个人 H5 播放，直接重定向到 Telegram 的 CDN 地址通常是更稳健的选择
+        // 只有当存在跨域问题无法播放时，才考虑中转。
+
+        // 方案 1: 直接重定向 (推荐用于大文件)
+        return NextResponse.redirect(downloadUrl);
+
+        /* 
+        // 方案 2: 保持中转 (如果重定向无法播放，请告诉我，我再换回这个并做优化)
         const response = await axios({
             method: 'get',
             url: downloadUrl,
             responseType: 'stream',
-            headers: {
-                'User-Agent': 'Mozilla/5.0'
-            }
+            timeout: 10000, 
+            headers: { 'User-Agent': 'Mozilla/5.0' }
         });
 
-        // 设置响应头以支持视频流
         const headers = new Headers();
         headers.set('Content-Type', response.headers['content-type'] || 'video/mp4');
-        headers.set('Content-Length', response.headers['content-length']);
         headers.set('Accept-Ranges', 'bytes');
-
-        // 如果包含 download 参数，则设置 Content-Disposition 以触发下载
-        const isDownload = req.nextUrl.searchParams.get('download') === 'true';
-        if (isDownload) {
-            headers.set('Content-Disposition', 'attachment; filename="video.mp4"');
-        }
-
-        // 我们可以直接返回底层流吗？Next.js 14 的 NextResponse 支持 ReadableStream
-        // @ts-ignore
-        return new NextResponse(response.data, {
-            status: 200,
-            headers,
-        });
-    } catch (error) {
-        console.error('Video proxy error:', error);
-        return new NextResponse('Error fetching video content', { status: 500 });
+        return new NextResponse(response.data as any, { status: 200, headers });
+        */
+    } catch (error: any) {
+        console.error('Video proxy failed:', error.message);
+        return new NextResponse(`Error fetching video content: ${error.message}`, { status: 500 });
     }
 }
