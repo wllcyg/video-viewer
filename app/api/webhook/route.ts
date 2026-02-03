@@ -9,18 +9,20 @@ export async function POST(req: NextRequest) {
         // 简单的解析逻辑
         if (body.message) {
             const { message } = body;
+            console.log('Incoming message text:', message.text || 'No text');
 
-            // 检查是否包含视频
-            if (message.video) {
-                const video = message.video;
+            // 检查是否包含视频或作为文件的视频
+            const video = message.video || (message.document?.mime_type?.startsWith('video/') ? message.document : null);
+
+            if (video) {
                 const videoInfo: VideoInfo = {
                     fileId: video.file_id,
                     uniqueId: video.file_unique_id,
-                    fileName: video.file_name,
+                    fileName: video.file_name || video.file_unique_id,
                     mimeType: video.mime_type,
-                    duration: video.duration,
-                    width: video.width,
-                    height: video.height,
+                    duration: video.duration || 0,
+                    width: video.width || 0,
+                    height: video.height || 0,
                     thumbnail: video.thumb?.file_id,
                     caption: message.caption,
                     chatId: message.chat.id,
@@ -28,8 +30,10 @@ export async function POST(req: NextRequest) {
                     date: message.date,
                 };
 
-                console.log('Detected video, saving to KV:', videoInfo.fileId);
+                console.log('Detected video/document, saving to KV:', videoInfo.fileId);
                 await saveVideo(videoInfo);
+            } else {
+                console.log('Message does not contain a recognizable video object.');
             }
         }
 
