@@ -17,12 +17,13 @@ export async function GET(
         const downloadUrl = await getFileDownloadUrl(fileId);
         console.log('Fetched download URL successfully.');
 
-        // Vercel Serverless Function 有限制 (Payload size & Timeout)
-        // 对于 1.6GB 这么大的视频，直接流式转发可能会被 Vercel 断开连接
-        // 既然我们主要用于个人 H5 播放，直接重定向到 Telegram 的 CDN 地址通常是更稳健的选择
-        // 只有当存在跨域问题无法播放时，才考虑中转。
+        const isJson = req.nextUrl.searchParams.get('json') === 'true';
 
-        // 方案 1: 直接重定向 (推荐用于大文件)
+        if (isJson) {
+            return NextResponse.json({ url: downloadUrl });
+        }
+
+        // 默认行为：重定向
         return NextResponse.redirect(downloadUrl);
 
         /* 

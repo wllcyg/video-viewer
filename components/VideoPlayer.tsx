@@ -1,5 +1,4 @@
-'use client';
-
+import { useState, useEffect } from 'react';
 import { VideoInfo } from '@/lib/telegram';
 import { XMarkIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 
@@ -9,8 +8,31 @@ interface VideoPlayerProps {
 }
 
 export default function VideoPlayer({ video, onClose }: VideoPlayerProps) {
-    // 视频流通过我们的代理接口获取
-    const videoUrl = `/api/video/${video.fileId}`;
+    const [videoUrl, setVideoUrl] = useState<string>('');
+    const [loading, setLoading] = useState(true);
+
+    // 在页面加载时，动态获取 Telegram 的直连地址
+    useEffect(() => {
+        const fetchRealUrl = async () => {
+            try {
+                setLoading(true);
+                // 我们调用一个专门返回 JSON 地址的接口
+                const res = await fetch(`/api/video/${video.fileId}?json=true`);
+                const data = await res.json();
+                if (data.url) {
+                    setVideoUrl(data.url);
+                }
+            } catch (err) {
+                console.error('获取视频直连地址失败:', err);
+                // 降级使用重定向地址
+                setVideoUrl(`/api/video/${video.fileId}`);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchRealUrl();
+    }, [video.fileId]);
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 animate-in fade-in duration-300">
@@ -21,15 +43,22 @@ export default function VideoPlayer({ video, onClose }: VideoPlayerProps) {
                 <XMarkIcon className="w-8 h-8" />
             </button>
 
-            <div className="w-full max-w-4xl px-4">
-                <video
-                    controls
-                    autoPlay
-                    className="w-full aspect-video rounded-lg shadow-2xl bg-black"
-                    src={videoUrl}
-                >
-                    您的浏览器不支持 HTML5 视频播放。
-                </video>
+            <div className="w-full max-w-4xl px-4 text-center">
+                {loading ? (
+                    <div className="flex flex-col items-center gap-4 text-white">
+                        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                        <p>正在获取 Telegram 极速资源...</p>
+                    </div>
+                ) : (
+                    <video
+                        controls
+                        autoPlay
+                        className="w-full aspect-video rounded-lg shadow-2xl bg-black"
+                        src={videoUrl}
+                    >
+                        您的浏览器不支持 HTML5 视频播放。
+                    </video>
+                )}
 
                 <div className="mt-6 text-left">
                     <h2 className="text-xl font-semibold text-white">
