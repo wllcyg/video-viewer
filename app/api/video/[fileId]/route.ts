@@ -46,4 +46,4 @@ export async function GET(
         return new NextResponse(`Error fetching video content: ${error.message}`, { status: 500 });
     }
 }
-console.log('Video proxy function loaded successfully.');
+// console.log('Video proxy function loaded successfully.');
