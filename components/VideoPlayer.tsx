@@ -18,9 +18,18 @@ export default function VideoPlayer({ video, onClose }: VideoPlayerProps) {
                 setLoading(true);
                 // 我们调用一个专门返回 JSON 地址的接口
                 const res = await fetch(`/api/video/${video.fileId}?json=true`);
+
+                // 先检查响应状态，避免解析非 JSON 错误响应
+                if (!res.ok) {
+                    const errorText = await res.text();
+                    throw new Error(`API 错误 (${res.status}): ${errorText}`);
+                }
+
                 const data = await res.json();
                 if (data.url) {
                     setVideoUrl(data.url);
+                } else {
+                    throw new Error('响应中缺少 url 字段');
                 }
             } catch (err) {
                 console.error('获取视频直连地址失败:', err);
